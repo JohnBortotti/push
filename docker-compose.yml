@@ -5,10 +5,10 @@ services:
     build:
       context: ./notifications-api-publisher/
     ports:
-      - "8000:8000"
+      - "3232:3232"
     environment:
       - ROCKET_ADDRESS=0.0.0.0
-      - ROCKET_PORT=8000
+      - ROCKET_PORT=3232
       - RABBITMQ_IP=""
       - RABBITMQ_PORT=5672
       - RABBITMQ_USER=""
