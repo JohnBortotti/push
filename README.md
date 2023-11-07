@@ -4,7 +4,7 @@ running in the homelab to generate notifications, alerts, and reports. Feel free
 customize it to suit your specific needs and preferences, the project is absolutely open to contributions.
 
 ## Project Overview
-The project consists of two main components: ´notifications-api-publisher´ and ´notifications-api-consumer´. 
+The project consists of two main components: `notifications-api-publisher` and `notifications-api-consumer`. 
 These components are located in separate directories: "notifications-api-consumer" and "notifications-api-publisher", 
 and each has a Dockerfile for building the respective images. You can use the provided docker-compose.yml 
 file at the root of the project to build and run the entire system.
@@ -12,13 +12,13 @@ file at the root of the project to build and run the entire system.
 ### notifications-api-publisher
 The notifications-api-publisher is a straightforward HTTP API built with the Rocket framework. 
 It exposes a single endpoint, POST /notify, which accepts JSON data in the following format:
-´´´json
+```json
 {
   "title": "title string",
   "description": "description string",
   "category": "Alert", "Critical", or "Report"
 }
-´´´
+```
 When a request is made to this endpoint, the API publishes a message to the RabbitMQ queue. 
 The configuration for RabbitMQ is managed via environment variables set in the Docker Compose file.
 
@@ -36,9 +36,9 @@ This includes setting up the necessary credentials for SendGrid (api-key).
 - Ensure that you have a running RabbitMQ instance accessible to the project. 
 
 - With the environment variables properly configured, use the provided docker-compose.yml to start the project:
-´´´bash
+```bash
 docker compose up
-´´´
+```
 
 - The project is now up and running. You can start sending requests to the notifications-api-publisher endpoint, 
 and the notifications-api-consumer will process them and send out notification emails accordingly
