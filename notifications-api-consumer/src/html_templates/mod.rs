@@ -1,8 +1,16 @@
-use super::{Message, NotificationCategory};
+use super::Message;
+use serde::Deserialize;
 
 pub mod alert;
 pub mod critical;
 pub mod report;
+
+#[derive(Deserialize)]
+pub enum NotificationCategory {
+    Alert,
+    Critical,
+    Report,
+}
 
 pub fn build(message: Message) -> String {
     match message.category {

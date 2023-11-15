@@ -1,44 +1,16 @@
+mod html_templates;
+mod email;
+
 use amqprs::{
     callbacks::{DefaultChannelCallback, DefaultConnectionCallback},
     channel::{BasicAckArguments, BasicGetArguments},
     connection::{Connection, OpenConnectionArguments},
 };
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::{env, thread, time::Duration};
 use tokio;
-
-mod html_templates;
-
-#[derive(Serialize)]
-struct SendGridEmail {
-    personalizations: Vec<Personalization>,
-    from: From,
-    subject: String,
-    content: Vec<Content>,
-}
-
-#[derive(Serialize)]
-struct Personalization {
-    to: Vec<To>,
-}
-
-#[derive(Serialize)]
-struct To {
-    email: String,
-}
-
-#[derive(Serialize)]
-struct From {
-    email: String,
-    name: String,
-}
-
-#[derive(Serialize)]
-struct Content {
-    r#type: String,
-    value: String,
-}
+use html_templates::NotificationCategory;
 
 #[derive(Deserialize)]
 pub struct Message {
@@ -48,12 +20,6 @@ pub struct Message {
     timestamp: String,
 }
 
-#[derive(Deserialize)]
-pub enum NotificationCategory {
-    Alert,
-    Critical,
-    Report,
-}
 
 #[tokio::main]
 async fn main() {
@@ -79,17 +45,17 @@ async fn main() {
         &rabbitmq_password,
     ))
     .await
-    .unwrap();
+    .expect("Failed to open connection");
 
     conn.register_callback(DefaultConnectionCallback)
         .await
         .unwrap();
 
-    let channel = conn.open_channel(None).await.unwrap();
+    let channel = conn.open_channel(None).await.expect("Failed to open channel");
     channel
         .register_callback(DefaultChannelCallback)
         .await
-        .unwrap();
+        .expect("Failed to register channel callback");
 
     let args = BasicGetArguments::new("notifications-queue");
 
@@ -105,22 +71,7 @@ async fn main() {
 
                     let ack_args = BasicAckArguments::new(get_message.0.delivery_tag(), false);
 
-                    let email = SendGridEmail {
-                        from: From {
-                            email: mail_from_email.to_string(),
-                            name: mail_from_name.to_string(),
-                        },
-                        personalizations: vec![Personalization {
-                            to: vec![To {
-                                email: mail_to.to_string(),
-                            }],
-                        }],
-                        subject: message_json.title.clone(),
-                        content: vec![Content {
-                            r#type: "text/html".to_string(),
-                            value: html_templates::build(message_json),
-                        }],
-                    };
+                    let email = email::build_sendgrid(&mail_from_email, &mail_from_name, &mail_to, message_json);
 
                     let request = client
                         .post(url)
