@@ -52,6 +52,8 @@ async fn handle_message(
         }
     };
 
+    println!("");
+    println!("");
     Ok(())
 }
 
@@ -111,9 +113,7 @@ async fn main() {
                         let _ = handle_message(email, &channel_clone, ack_args, &client_clone, sendgrid_api_key_clone).await;
                     });
                 }
-                None => {
-                    dbg!("No messages");
-                }
+                None => {}
             },
             Err(err) => {
                 println!(
