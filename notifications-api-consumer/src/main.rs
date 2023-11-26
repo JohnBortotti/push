@@ -10,8 +10,9 @@ use email::SendGridEmail;
 use reqwest::Client;
 use serde::Deserialize;
 use std::{env, thread, time::Duration};
-use tokio;
+use tokio::sync::Semaphore;
 use html_templates::NotificationCategory;
+use std::sync::Arc;
 
 #[derive(Deserialize)]
 pub struct Message {
@@ -36,7 +37,7 @@ async fn handle_message(
         .header("Authorization", format!("Bearer {}", sendgrid_api_key))
         .json(&email);
     let response = request.send().await.unwrap();
-    
+
     if response.status().is_success() {
         println!("Email sent successfully!");
     } else {
@@ -70,9 +71,12 @@ async fn main() {
     let mail_from_email = env::var("MAIL_FROM_EMAIL").expect("env var not found: MAIL_FROM_EMAIL");
     let mail_from_name = env::var("MAIL_FROM_NAME").expect("env var not found: MAIL_FROM_NAME");
     let mail_to = env::var("MAIL_TO").expect("env var not found: MAIL_TO");
-    let polling_delay = env::var("POLLING_DELAY").expect("env var not found: POLLING_DELAY")
+    let polling_delay = env::var("POLLING_DELAY").unwrap_or("1".to_string())
         .parse::<u64>()
         .expect("env var invalid format: POOLING_DELAY");
+    let semaphore_limit = env::var("ASYNC_TASKS_LIMIT").unwrap_or("5".to_string())
+        .parse::<usize>()
+        .expect("env var invalid format: ASYNC_TASKS_LIMIT");
 
     let conn = Connection::open(&OpenConnectionArguments::new(
         &rabbitmq_ip,
@@ -96,7 +100,10 @@ async fn main() {
     let args = BasicGetArguments::new("notifications-queue");
     let client = Client::new();
 
+    let semaphore = Arc::new(Semaphore::new(semaphore_limit));
+
     loop {
+        let semaphore_clone = Arc::clone(&semaphore);
         match channel.basic_get(args.clone()).await {
             Ok(message) => match message {
                 Some(get_message) => {
@@ -110,7 +117,9 @@ async fn main() {
                     let sendgrid_api_key_clone = sendgrid_api_key.clone();
 
                     tokio::spawn(async move {
+                        let permit = semaphore_clone.acquire().await.unwrap();
                         let _ = handle_message(email, &channel_clone, ack_args, &client_clone, sendgrid_api_key_clone).await;
+                        drop(permit);
                     });
                 }
                 None => {}
