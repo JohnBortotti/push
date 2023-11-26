@@ -21,6 +21,7 @@ services:
       context: ./notifications-api-consumer/
     environment:
       - POLLING_DELAY=5 #seconds
+      - ASYNC_TASKS_LIMIT=5
       - RABBITMQ_IP=""
       - RABBITMQ_PORT=5672
       - RABBITMQ_USER=""
