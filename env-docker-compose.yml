@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  publisher:
+    build:
+      context: ./publisher/
+    ports:
+      - "8000:8000"
+    environment:
+      - ROCKET_ADDRESS=0.0.0.0
+      - ROCKET_PORT=8000
+      - RABBITMQ_IP="192.168.0.108"
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=rabbituser
+      - RABBITMQ_PASSWORD=rabbitpass
+    networks:
+      - notifications_api_network
+
+  consumer:
+    build:
+      context: ./consumer/
+    environment:
+      - POLLING_DELAY=1
+      - RABBITMQ_IP=192.168.0.108
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=rabbituser
+      - RABBITMQ_PASSWORD=rabbitpass
+      - SENDGRID_KEY=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
+      - MAIL_FROM_EMAIL=joaobortotti7@gmail.com
+      - MAIL_FROM_NAME=Homelab
+      - MAIL_TO=joaovitorbortotti@gmail.com
+    networks:
+      - notifications_api_network
+
+networks:
+  notifications_api_network:
+    driver: bridge
