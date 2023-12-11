@@ -3,7 +3,7 @@ version: "3.8"
 services:
   publisher:
     build:
-      context: ./notifications-api-publisher/
+      context: ./publisher/
     ports:
       - "3232:3232"
     environment:
@@ -14,11 +14,11 @@ services:
       - RABBITMQ_USER=""
       - RABBITMQ_PASSWORD=""
     networks:
-      - notifications_api_network
+      - push_network
 
   consumer:
     build:
-      context: ./notifications-api-consumer/
+      context: ./consumer/
     environment:
       - POLLING_DELAY=5 #seconds
       - ASYNC_TASKS_LIMIT=5
@@ -31,8 +31,8 @@ services:
       - MAIL_FROM_NAME="Homelab"
       - MAIL_TO=""
     networks:
-      - notifications_api_network
+      - push_network
 
 networks:
-  notifications_api_network:
+  push_network:
     driver: bridge
