@@ -2,6 +2,7 @@
 extern crate rocket;
 
 mod config;
+mod notification;
 
 use amqprs::{
     callbacks::{DefaultChannelCallback, DefaultConnectionCallback},
@@ -10,36 +11,10 @@ use amqprs::{
     BasicProperties,
 };
 use chrono::{DateTime, Local};
-use rocket::{State, serde::{json::Json, Deserialize, Serialize}};
-use std::fmt;
+use notification::Notification;
+use rocket::{State, serde::json::Json};
 use tokio;
 use tokio::io::Error as TError;
-
-#[derive(Deserialize, Serialize)]
-#[serde(crate = "rocket::serde")]
-struct Notification<'r> {
-    title: &'r str,
-    description: &'r str,
-    category: NotificationCategory,
-}
-
-#[derive(Deserialize, Serialize)]
-pub enum NotificationCategory {
-    Alert,
-    Critical,
-    Report,
-}
-
-impl fmt::Display for NotificationCategory {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            NotificationCategory::Alert => write!(f, "Alert"),
-            NotificationCategory::Critical => write!(f, "Critical"),
-            NotificationCategory::Report => write!(f, "Report"),
-        }
-    }
-}
-
 
 #[post("/notify", format = "application/json", data = "<notification>")]
 async fn notify(notification: Json<Notification<'_>>, config: &State<config::Config>) -> Result<(), TError> {
