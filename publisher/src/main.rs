@@ -23,9 +23,8 @@ async fn notify(
     config: &State<config::Config>,
 ) -> Result<(), TError> {
     let channel = pool.get().await.unwrap();
-    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
-    let rounting_key = "notifications.smtp";
+    let rounting_key = "push.notifications.smtp";
 
     let local_time: DateTime<Local> = Local::now();
     let local_time_str = local_time.format("%Y-%m-%d %H:%M:%S").to_string();

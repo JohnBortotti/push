@@ -1,5 +1,6 @@
 use serde::Serialize;
-use super::{html_templates, Message};
+
+use super::{html_templates, notification::Notification};
 
 #[derive(Serialize)]
 pub struct SendGridEmail {
@@ -31,7 +32,7 @@ struct Content {
     value: String,
 }
 
-pub fn build_sendgrid(mail_from_email: &str, mail_from_name: &str, mail_to: &str, message_json: Message) -> SendGridEmail {
+pub fn build_sendgrid(mail_from_email: &str, mail_from_name: &str, mail_to: &str, notification: Notification) -> SendGridEmail {
     SendGridEmail {
         from: From {
             email: mail_from_email.to_string(),
@@ -42,10 +43,10 @@ pub fn build_sendgrid(mail_from_email: &str, mail_from_name: &str, mail_to: &str
                 email: mail_to.to_string(),
             }],
         }],
-        subject: message_json.title.clone(),
+        subject: notification.title.clone(),
         content: vec![Content {
             r#type: "text/html".to_string(),
-            value: html_templates::build(message_json),
+            value: html_templates::build(notification),
         }],
     }
 }

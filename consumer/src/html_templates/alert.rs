@@ -1,6 +1,6 @@
-use super::super::Message;
+use crate::notification::Notification;
 
-pub fn build(message: Message) -> String {
+pub fn build(notification: Notification) -> String {
     format!(
         r#"<!DOCTYPE html>
 <html>
@@ -181,6 +181,6 @@ pub fn build(message: Message) -> String {
 </body>
 
 </html>"#,
-        message.title, message.description, message.timestamp
+        notification.title, notification.description, notification.timestamp
     )
 }

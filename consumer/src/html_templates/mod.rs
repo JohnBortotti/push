@@ -1,4 +1,5 @@
-use super::Message;
+use crate::notification::Notification;
+
 use serde::Deserialize;
 
 pub mod alert;
@@ -12,10 +13,10 @@ pub enum NotificationCategory {
     Report,
 }
 
-pub fn build(message: Message) -> String {
-    match message.category {
-        NotificationCategory::Alert => alert::build(message),
-        NotificationCategory::Critical => critical::build(message),
-        NotificationCategory::Report => report::build(message),
+pub fn build(notification: Notification) -> String {
+    match notification.category {
+        NotificationCategory::Alert => alert::build(notification),
+        NotificationCategory::Critical => critical::build(notification),
+        NotificationCategory::Report => report::build(notification),
     }
 }
