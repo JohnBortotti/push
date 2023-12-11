@@ -1,6 +1,8 @@
 #[macro_use]
 extern crate rocket;
 
+mod config;
+
 use amqprs::{
     callbacks::{DefaultChannelCallback, DefaultConnectionCallback},
     channel::BasicPublishArguments,
@@ -9,7 +11,6 @@ use amqprs::{
 };
 use chrono::{DateTime, Local};
 use rocket::{State, serde::{json::Json, Deserialize, Serialize}};
-use std::env;
 use std::fmt;
 use tokio;
 use tokio::io::Error as TError;
@@ -39,15 +40,9 @@ impl fmt::Display for NotificationCategory {
     }
 }
 
-struct Config {
-    rabbitmq_ip: String,
-    rabbitmq_port: u16,
-    rabbitmq_user: String,
-    rabbitmq_password: String,
-}
 
 #[post("/notify", format = "application/json", data = "<notification>")]
-async fn notify(notification: Json<Notification<'_>>, config: &State<Config>) -> Result<(), TError> {
+async fn notify(notification: Json<Notification<'_>>, config: &State<config::Config>) -> Result<(), TError> {
     let conn = Connection::open(&OpenConnectionArguments::new(
         &config.rabbitmq_ip,
         config.rabbitmq_port,
@@ -95,12 +90,7 @@ async fn notify(notification: Json<Notification<'_>>, config: &State<Config>) ->
 
 #[launch]
 fn rocket() -> _ {
-    let config = Config {
-        rabbitmq_ip: env::var("RABBITMQ_IP").expect("RABBITMQ_IP must be set"),
-        rabbitmq_port: env::var("RABBITMQ_PORT").expect("RABBITMQ_PORT must be set").parse::<u16>().expect("RABBITMQ_PORT must be a number"),
-        rabbitmq_user: env::var("RABBITMQ_USER").expect("RABBITMQ_USER must be set"),
-        rabbitmq_password: env::var("RABBITMQ_PASSWORD").expect("RABBITMQ_PASSWORD must be set"),
-    };
+    let config = config::Config::new();
 
     rocket::build().manage(config).mount("/", routes![notify])
 }
