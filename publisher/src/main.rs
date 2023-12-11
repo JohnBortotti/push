@@ -3,42 +3,29 @@ extern crate rocket;
 
 mod config;
 mod notification;
+mod pool;
 
-use amqprs::{
-    callbacks::{DefaultChannelCallback, DefaultConnectionCallback},
-    channel::BasicPublishArguments,
-    connection::{Connection, OpenConnectionArguments},
-    BasicProperties,
-};
+use bb8::Pool;
+use bb8_lapin::prelude::*;
 use chrono::{DateTime, Local};
+use lapin::options::BasicPublishOptions;
+use lapin::{BasicProperties, Connection, ConnectionProperties};
 use notification::Notification;
-use rocket::{State, serde::json::Json};
+use pool::AmqpChannelManager;
+use rocket::{serde::json::Json, State};
 use tokio;
 use tokio::io::Error as TError;
 
 #[post("/notify", format = "application/json", data = "<notification>")]
-async fn notify(notification: Json<Notification<'_>>, config: &State<config::Config>) -> Result<(), TError> {
-    let conn = Connection::open(&OpenConnectionArguments::new(
-        &config.rabbitmq_ip,
-        config.rabbitmq_port,
-        &config.rabbitmq_user,
-        &config.rabbitmq_password,
-    ))
-    .await
-    .expect("Failed to open connection");
-
-    conn.register_callback(DefaultConnectionCallback)
-        .await
-        .expect("Failed to register connection callback");
-
-    let channel = conn.open_channel(None).await.expect("Failed to open channel");
-    channel
-        .register_callback(DefaultChannelCallback)
-        .await
-        .expect("Failed to register channel callback");
+async fn notify(
+    notification: Json<Notification<'_>>,
+    pool: &State<Pool<AmqpChannelManager>>,
+    config: &State<config::Config>,
+) -> Result<(), TError> {
+    let channel = pool.get().await.unwrap();
+    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
     let rounting_key = "notifications.smtp";
-    let exchange_name = "notifications";
 
     let local_time: DateTime<Local> = Local::now();
     let local_time_str = local_time.format("%Y-%m-%d %H:%M:%S").to_string();
@@ -48,24 +35,45 @@ async fn notify(notification: Json<Notification<'_>>, config: &State<config::Con
         "description": notification.description,
         "category": notification.category,
         "timestamp": local_time_str
-    }).to_string().into_bytes();
-
-    let args = BasicPublishArguments::new(exchange_name, rounting_key);
+    })
+    .to_string()
+    .into_bytes();
 
     channel
-        .basic_publish(BasicProperties::default(), content, args)
+        .basic_publish(
+            config.exchange_name.as_str(),
+            rounting_key,
+            BasicPublishOptions::default(),
+            &content,
+            BasicProperties::default(),
+        )
         .await
         .expect("Failed to publish message");
-
-    channel.close().await.unwrap();
-    conn.close().await.unwrap();
 
     Ok(())
 }
 
 #[launch]
-fn rocket() -> _ {
+async fn rocket() -> _ {
     let config = config::Config::new();
 
-    rocket::build().manage(config).mount("/", routes![notify])
+    let addr = format!(
+        "amqp://{}:{}@{}:{}/%2f",
+        config.rabbitmq_user, config.rabbitmq_password, config.rabbitmq_ip, config.rabbitmq_port
+    );
+    let connection = Connection::connect(&addr, ConnectionProperties::default())
+        .await
+        .unwrap();
+    let manager = AmqpChannelManager { connection };
+
+    let pool = Pool::builder()
+        .max_size(config.max_channels)
+        .build(manager)
+        .await
+        .unwrap();
+
+    rocket::build()
+        .manage(pool)
+        .manage(config)
+        .mount("/", routes![notify])
 }
